@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera Finder</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171b22; --panel2:#1e242d; --line:#2a313c;
+    --txt:#e6eaf0; --muted:#95a0b0; --accent:#4a9eff;
+    --high:#ff4d4f; --med:#ffac33; --low:#3ecf8e; --info:#5a6472;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px 64px}
+  header h1{margin:0 0 4px;font-size:22px}
+  header p{margin:0;color:var(--muted)}
+  .bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0}
+  button.scan{background:var(--accent);color:#061018;border:0;border-radius:10px;
+       padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer}
+  button.scan:disabled{opacity:.6;cursor:default}
+  .meta{color:var(--muted);font-size:13px}
+  .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+       border-radius:8px;padding:12px 14px;color:var(--muted);font-size:13px;margin:14px 0}
+  .summary{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+       padding:6px 14px;font-size:13px}
+  .pill b{color:var(--txt)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);
+       border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);font-size:14px}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  tr.row{cursor:pointer}
+  tr.row:hover td{background:var(--panel2)}
+  tr.row:last-child td{border-bottom:0}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .b-high{background:rgba(255,77,79,.15);color:var(--high)}
+  .b-medium{background:rgba(255,172,51,.15);color:var(--med)}
+  .b-low{background:rgba(62,207,142,.13);color:var(--low)}
+  .b-router,.b-self{background:rgba(90,100,114,.2);color:var(--muted)}
+  .mono{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+  .sub{color:var(--muted);font-size:12px}
+  .empty,.loading{text-align:center;color:var(--muted);padding:40px 0}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);
+       border-radius:50%;animation:s 1s linear infinite;margin:0 auto 12px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  /* static modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+       align-items:center;justify-content:center;padding:16px;z-index:10}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+       width:100%;max-width:460px;max-height:86vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start;
+       padding:18px 20px;border-bottom:1px solid var(--line)}
+  .modal-head h2{margin:0;font-size:18px}
+  .x{background:none;border:0;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
+  .modal-body{padding:18px 20px}
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:8px 12px;margin-bottom:18px}
+  .kv div:nth-child(odd){color:var(--muted);font-size:13px}
+  .reasons li{margin:5px 0}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+       border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;font-size:12px}
+  footer{margin-top:28px;color:var(--info);font-size:12px;line-height:1.7}
+  @media(max-width:560px){th:nth-child(3),td:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Camera Finder</h1>
+    <p>See every device on your Wi-Fi and flag the ones that look like cameras.</p>
+  </header>
+
+  <div class="note">
+    This tool only <b>observes</b> your own network &mdash; it lists devices, reads the
+    hardware maker from the MAC address, and checks for camera video ports. It never logs
+    into or sends commands to any device. A flag means &ldquo;worth checking,&rdquo; not proof;
+    confirm anything suspicious physically (look for a lens, use a flashlight to catch
+    reflections, or unplug/cover it).
+  </div>
+
+  <div class="bar">
+    <button class="scan" id="scanBtn">Scan my network</button>
+    <span class="meta" id="meta"></span>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div id="content"></div>
+
+  <footer>
+    Defensive / self-protection use only. Run it only on a network you are using.
+    MAC-vendor matching is best-effort and incomplete; an open RTSP port (554) is the
+    most reliable camera signal. No data leaves your computer.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="mTitle">Device</h2>
+      <button class="x" id="mClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+const LEVEL = {
+  high:   {label:"Likely camera",  cls:"b-high"},
+  medium: {label:"Worth checking", cls:"b-medium"},
+  low:    {label:"No signals",     cls:"b-low"},
+  router: {label:"Your router",    cls:"b-router"},
+  self:   {label:"This computer",  cls:"b-self"},
+};
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let DEVICES = [];
+
+$("#scanBtn").addEventListener("click", runScan);
+$("#mClose").addEventListener("click", closeModal);
+$("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+async function runScan(){
+  const btn = $("#scanBtn");
+  btn.disabled = true; btn.textContent = "Scanning…";
+  $("#summary").innerHTML = "";
+  $("#meta").textContent = "";
+  $("#content").innerHTML =
+    '<div class="loading"><div class="spin"></div>Pinging every address and checking camera ports… (about 5–15s)</div>';
+  try{
+    const res = await fetch("/api/scan");
+    const data = await res.json();
+    if (data.error){ $("#content").innerHTML = '<div class="empty">'+esc(data.error)+'</div>'; return; }
+    render(data);
+  }catch(err){
+    $("#content").innerHTML = '<div class="empty">Could not reach the scanner. Is app.py still running?</div>';
+  }finally{
+    btn.disabled = false; btn.textContent = "Scan again";
+  }
+}
+
+function render(data){
+  DEVICES = data.devices;
+  $("#meta").textContent =
+    `${data.network} · ${data.devices.length} devices · ${data.duration_s}s · ${data.scanned_at}`;
+  const n = l => data.devices.filter(d => d.level === l).length;
+  $("#summary").innerHTML =
+    `<span class="pill">Found <b>${data.devices.length}</b></span>`+
+    `<span class="pill" style="color:var(--high)">Likely cameras <b>${n('high')}</b></span>`+
+    `<span class="pill" style="color:var(--med)">Worth checking <b>${n('medium')}</b></span>`;
+
+  if (!data.devices.length){ $("#content").innerHTML = '<div class="empty">No devices found.</div>'; return; }
+  let rows = "";
+  data.devices.forEach((d,i) => {
+    const L = LEVEL[d.level];
+    const name = d.hostname || (d.is_self ? "This computer" : (d.vendor || "Unknown device"));
+    rows += `<tr class="row" data-i="${i}">
+      <td><span class="badge ${L.cls}">${L.label}</span></td>
+      <td><div>${esc(name)}</div><div class="sub mono">${esc(d.ip)}</div></td>
+      <td>${esc(d.vendor || "—")}</td>
+      <td class="mono sub">${d.open_ports.length ? d.open_ports.join(", ") : "—"}</td>
+    </tr>`;
+  });
+  $("#content").innerHTML =
+    `<table><thead><tr><th>Status</th><th>Device</th><th>Vendor</th><th>Open ports</th></tr></thead>
+     <tbody>${rows}</tbody></table>`;
+  document.querySelectorAll("tr.row").forEach(r =>
+    r.addEventListener("click", () => openModal(DEVICES[+r.dataset.i])));
+}
+
+function openModal(d){
+  const L = LEVEL[d.level];
+  const name = d.hostname || (d.is_self ? "This computer" : (d.vendor || "Unknown device"));
+  $("#mTitle").innerHTML = `${esc(name)} <span class="badge ${L.cls}" style="margin-left:6px">${L.label}</span>`;
+  const ports = d.open_ports.length
+    ? d.open_ports.map(p => `<span class="tag">${p} &middot; ${esc(d.port_labels[p]||"")}</span>`).join("")
+    : '<span class="sub">none detected</span>';
+  const reasons = (d.reasons||[]).map(r => `<li>${esc(r)}</li>`).join("");
+  $("#mBody").innerHTML = `
+    <div class="kv">
+      <div>IP address</div><div class="mono">${esc(d.ip)}</div>
+      <div>MAC address</div><div class="mono">${esc(d.mac)}${d.randomized_mac?' <span class="sub">(randomized)</span>':''}</div>
+      <div>Vendor</div><div>${esc(d.vendor||"Unknown")}</div>
+      <div>Network name</div><div>${esc(d.hostname||"—")}</div>
+      <div>Answered ping</div><div>${d.responds_to_ping?"yes":"no"}</div>
+    </div>
+    <div><b>Open ports</b><div style="margin:8px 0">${ports}</div></div>
+    <div><b>Why this status</b><ul class="reasons">${reasons}</ul></div>
+    ${d.level==='high'||d.level==='medium' ? `<div class="note" style="margin-top:14px">
+      Next step: find this device physically. Check whether anything you don't recognise
+      is at this spot, shine a phone flashlight to catch a lens reflection, and if it's a
+      camera you didn't place, cover or unplug it and tell the property owner / authorities.
+    </div>`:''}`;
+  $("#overlay").classList.add("show");
+}
+function closeModal(){ $("#overlay").classList.remove("show"); }
+</script>
+</body>
+</html>

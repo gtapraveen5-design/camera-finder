@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Camera Finder</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171b22; --panel2:#1e242d; --line:#2a313c;
+    --txt:#e6eaf0; --muted:#95a0b0; --accent:#4a9eff;
+    --high:#ff4d4f; --med:#ffac33; --low:#3ecf8e; --info:#5a6472;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{font:16px/1.5 system-ui,Roboto,sans-serif;background:var(--bg);color:var(--txt);
+       padding-bottom:env(safe-area-inset-bottom)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 14px 56px}
+  header{padding:18px 0 10px}
+  header h1{margin:0 0 2px;font-size:21px}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .tabs{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:6px;
+        padding:8px 0 10px;overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:1 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);
+       border-radius:999px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#061018}
+  .panel{display:none}
+  .panel.on{display:block}
+  .lead{color:var(--muted);font-size:14px;margin:4px 0 12px}
+  .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+       border-radius:8px;padding:11px 13px;color:var(--muted);font-size:13px;margin:12px 0}
+  .note.warn{border-left-color:var(--med)}
+  .btn{width:100%;background:var(--accent);color:#061018;border:0;border-radius:12px;
+       padding:15px;font-size:16px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.6}
+  .btn.ghost{background:var(--panel);color:var(--txt);border:1px solid var(--line)}
+  .row{display:flex;gap:8px;margin-top:8px}
+  .row .btn{padding:12px;font-size:14px}
+  .meta{color:var(--muted);font-size:12px;margin-top:10px;display:block}
+  .summary{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:13px}
+  .pill b{color:var(--txt)}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;
+       display:flex;align-items:center;gap:12px;cursor:pointer}
+  .card:active{background:var(--panel2)}
+  .card .grow{flex:1;min-width:0}
+  .card .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .b-high{background:rgba(255,77,79,.15);color:var(--high)}
+  .b-medium{background:rgba(255,172,51,.15);color:var(--med)}
+  .b-low{background:rgba(62,207,142,.13);color:var(--low)}
+  .b-router,.b-self{background:rgba(90,100,114,.2);color:var(--muted)}
+  .mono{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted)}
+  .sub{color:var(--muted);font-size:12px}
+  .bars{display:inline-flex;gap:2px;align-items:flex-end;height:14px}
+  .bars i{display:block;width:4px;background:var(--line);border-radius:1px}
+  .bars i.on{background:var(--txt)}
+  .empty,.loading{text-align:center;color:var(--muted);padding:34px 0}
+  .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);
+       border-radius:50%;animation:s 1s linear infinite;margin:0 auto 12px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .tool{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+  .tool h3{margin:0 0 4px;font-size:17px}
+  .tool ol{margin:8px 0 14px;padding-left:20px;color:var(--muted);font-size:14px}
+  .tool li{margin:4px 0}
+  .meter{text-align:center;padding:18px 0 6px}
+  .meter .big{font-size:52px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  .meter .unit{font-size:16px;color:var(--muted);font-weight:600}
+  .meter .state{margin-top:8px;font-weight:700}
+  .track{height:14px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:14px 0 6px}
+  .fill{height:100%;width:0;background:var(--low);transition:width .12s,background .2s}
+  .check{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .check:last-child{border-bottom:0}
+  .check input{width:22px;height:22px;margin-top:2px;accent-color:var(--accent);flex:none}
+  .check b{display:block}
+  .check span{color:var(--muted);font-size:13px}
+  .gaps{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  .gaps td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+  .gaps td:first-child{color:var(--muted);width:52%}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;
+       justify-content:center;z-index:10}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;
+       width:100%;max-width:640px;max-height:88vh;overflow:auto}
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start;
+       padding:18px 18px 12px;position:sticky;top:0;background:var(--panel)}
+  .modal-head h2{margin:0;font-size:18px;word-break:break-word}
+  .x{background:none;border:0;color:var(--muted);font-size:28px;line-height:1;cursor:pointer;padding:0 4px}
+  .modal-body{padding:0 18px 24px}
+  .kv{display:grid;grid-template-columns:118px 1fr;gap:9px 12px;margin-bottom:16px}
+  .kv div:nth-child(odd){color:var(--muted);font-size:13px}
+  .kv div{word-break:break-word}
+  .reasons{margin:8px 0 0;padding-left:20px}
+  .reasons li{margin:5px 0}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+       border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;font-size:12px}
+  footer{margin-top:22px;color:var(--info);font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Camera Finder</h1>
+    <p>Each tab catches a different kind of hidden camera. Use all five for a full room sweep.</p>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab on" data-tab="net">1 Network</button>
+    <button class="tab" data-tab="hot">2 Hotspots</button>
+    <button class="tab" data-tab="lens">3 Lens / IR</button>
+    <button class="tab" data-tab="mag">4 Magnet</button>
+    <button class="tab" data-tab="check">5 Checklist</button>
+  </nav>
+
+  <!-- 1. NETWORK -->
+  <section class="panel on" id="p-net">
+    <p class="lead">Finds cameras connected to <b>the Wi-Fi you're on</b>. Connect to the room's Wi-Fi in Settings first.</p>
+    <button class="btn" id="netBtn">Scan this Wi-Fi</button>
+    <span class="meta" id="netMeta"></span>
+    <div class="summary" id="netSummary"></div>
+    <div id="netContent"></div>
+  </section>
+
+  <!-- 2. HOTSPOTS -->
+  <section class="panel" id="p-hot">
+    <p class="lead">Finds cameras broadcasting <b>their own Wi-Fi hotspot</b>, or hidden behind a portable 4G router &mdash; the ones the network scan can't see. You don't need to connect to anything.</p>
+    <button class="btn" id="hotBtn">Scan nearby Wi-Fi</button>
+    <span class="meta" id="hotMeta"></span>
+    <div class="summary" id="hotSummary"></div>
+    <div id="hotContent"></div>
+    <div class="note">Tip: to find where a flagged hotspot is, walk around the room and scan again. The signal gets
+      stronger (closer to 0 dBm) as you get closer; stronger than &minus;50 dBm usually means within a few metres.
+      Android limits fresh scans to about 4 every 2 minutes.</div>
+  </section>
+
+  <!-- 3. LENS / IR -->
+  <section class="panel" id="p-lens">
+    <p class="lead">Finds cameras that are <b>offline, asleep or recording to an SD card</b> &mdash; they send nothing over Wi-Fi, but their lens still reflects light.</p>
+    <div class="tool">
+      <h3>Lens finder</h3>
+      <div class="sub">Flashlight + red contrast filter. Circles small, steady bright dots.</div>
+      <ol>
+        <li>Turn the room lights off and close the curtains.</li>
+        <li>Hold the phone at eye level and sweep slowly, one wall at a time.</li>
+        <li>A lens shows as a tiny dot that <b>stays put</b> as you move. Red circle = steady.</li>
+        <li>Walk up to anything circled and look closely for a pinhole.</li>
+      </ol>
+      <button class="btn" id="lensBtn">Open lens finder</button>
+    </div>
+    <div class="tool">
+      <h3>Infrared (night-vision) check</h3>
+      <div class="sub">Night-vision cameras light the room with invisible IR LEDs. Many phone cameras can see them.</div>
+      <ol>
+        <li>Test first: point a TV remote at the phone and press a button. If the remote's LED flashes on screen, this camera sees IR.</li>
+        <li>In the dark, scan the room. Look for small purple/white glowing dots.</li>
+        <li>If the remote test fails, tap <b>Flip camera</b> &mdash; selfie cameras often see IR better.</li>
+      </ol>
+      <button class="btn ghost" id="irBtn">Open infrared check</button>
+    </div>
+  </section>
+
+  <!-- 4. MAGNET -->
+  <section class="panel" id="p-mag">
+    <p class="lead">Finds <b>powered electronics</b> hidden inside objects, even with no network at all, using the phone's compass sensor.</p>
+    <div class="tool">
+      <div class="meter">
+        <div><span class="big" id="magDelta">&ndash;</span> <span class="unit">&micro;T change</span></div>
+        <div class="sub" id="magRaw">Field: &ndash;</div>
+        <div class="state" id="magState" style="color:var(--muted)">Not running</div>
+      </div>
+      <div class="track"><div class="fill" id="magFill"></div></div>
+      <button class="btn" id="magBtn">Start sweep</button>
+      <div class="row">
+        <button class="btn ghost" id="magCal">Re-calibrate</button>
+        <button class="btn ghost" id="magSound">Sound: on</button>
+      </div>
+      <ol>
+        <li>Hold the phone in the open, away from objects, and tap <b>Start</b> (or Re-calibrate).</li>
+        <li>Slowly pass the <b>top of the phone</b> 2&ndash;5 cm over each object. It beeps faster as the reading rises.</li>
+        <li>A jump on something that <b>shouldn't</b> contain electronics &mdash; a picture frame, book, plant, tissue box, clock face, wall hook &mdash; is a red flag. Look closer.</li>
+      </ol>
+      <div class="sub">Speakers, magnets, metal and in-wall wiring also move the reading, so compare similar objects and use it together with the lens finder.</div>
+    </div>
+  </section>
+
+  <!-- 5. CHECKLIST -->
+  <section class="panel" id="p-check">
+    <p class="lead">Do a quick physical sweep. Tick each item as you check it. <span id="checkCount" class="sub"></span></p>
+    <div class="tool" id="checklist"></div>
+    <div class="tool">
+      <h3>What each tool catches</h3>
+      <table class="gaps">
+        <tr><td>Camera on the room's Wi-Fi</td><td>1 Network</td></tr>
+        <tr><td>Camera on its own hotspot or a 4G router</td><td>2 Hotspots</td></tr>
+        <tr><td>Offline / asleep / SD-card camera</td><td>3 Lens, 4 Magnet</td></tr>
+        <tr><td>Night-vision camera</td><td>3 Infrared check</td></tr>
+        <tr><td>Anything else</td><td>5 Checklist</td></tr>
+      </table>
+    </div>
+    <div class="note warn"><b>If you find one:</b> don't damage it &mdash; it's evidence. Photograph it where it is,
+      cover it, leave if you feel unsafe, and report it to the booking platform and the police.</div>
+  </section>
+
+  <footer>
+    For your own safety, on networks and in rooms you're using. This app only observes &mdash; it never
+    logs into, controls or records anything. No single check is perfect; together they cover the common
+    hiding methods.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="mTitle">Details</h2>
+      <button class="x" id="mClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hasNative = m => window.Native && typeof window.Native[m] === "function";
+const NEXT_STEP = `<div class="note warn" style="margin-top:14px"><b>Next:</b> find it in the room
+  (use the Lens finder and Magnet tabs near suspect objects). If it's a camera you didn't place,
+  photograph it, cover it, and report it to the booking platform and the police. Don't destroy it.</div>`;
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + t.dataset.tab));
+  if (t.dataset.tab !== "mag" && magOn) stopMag();
+  window.scrollTo(0, 0);
+}));
+
+/* ---------- modal ---------- */
+$("#mClose").addEventListener("click", closeModal);
+$("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeModal(); });
+function openModal(title, html){ $("#mTitle").innerHTML = title; $("#mBody").innerHTML = html; $("#overlay").classList.add("show"); }
+function closeModal(){ $("#overlay").classList.remove("show"); }
+const loading = msg => `<div class="loading"><div class="spin"></div>${msg}</div>`;
+
+/* ---------- 1. network ---------- */
+const NET_LEVEL = {
+  high:{label:"Likely camera",cls:"b-high"}, medium:{label:"Worth checking",cls:"b-medium"},
+  low:{label:"No signals",cls:"b-low"}, router:{label:"Your router",cls:"b-router"}, self:{label:"This phone",cls:"b-self"},
+};
+let DEVICES = [];
+$("#netBtn").addEventListener("click", () => {
+  const btn = $("#netBtn");
+  btn.disabled = true; btn.textContent = "Scanning…";
+  $("#netSummary").innerHTML = ""; $("#netMeta").textContent = "";
+  $("#netContent").innerHTML = loading("Checking every device on this Wi-Fi…<br>about 10–20 seconds");
+  if (!hasNative("startScan")) { window.onScanResult({error:"Open this inside the Camera Finder app."}); return; }
+  window.Native.startScan();
+});
+window.onScanResult = function(data){
+  const btn = $("#netBtn"); btn.disabled = false; btn.textContent = "Scan again";
+  if (!data || data.error){ $("#netContent").innerHTML = `<div class="empty">${esc(data ? data.error : "No result")}</div>`; return; }
+  DEVICES = data.devices || [];
+  $("#netMeta").textContent = `${data.network} · ${DEVICES.length} devices · ${data.duration_s}s · ${data.scanned_at}`;
+  const n = l => DEVICES.filter(d => d.level === l).length;
+  $("#netSummary").innerHTML = `<span class="pill">Found <b>${DEVICES.length}</b></span>`+
+    `<span class="pill" style="color:var(--high)">Likely cameras <b>${n('high')}</b></span>`+
+    `<span class="pill" style="color:var(--med)">Worth checking <b>${n('medium')}</b></span>`;
+  if (!DEVICES.length){ $("#netContent").innerHTML = '<div class="empty">No devices found.</div>'; return; }
+  renderList("#netContent", DEVICES, d => {
+    const L = NET_LEVEL[d.level] || NET_LEVEL.low;
+    const name = d.hostname || (d.is_self ? "This phone" : (d.vendor || "Unknown device"));
+    const ports = d.open_ports.length ? "ports " + d.open_ports.join(", ") : "no open ports";
+    return `<span class="badge ${L.cls}">${L.label}</span><div class="grow"><div class="name">${esc(name)}</div>
+            <div class="mono">${esc(d.ip)} · ${esc(ports)}</div></div>`;
+  }, deviceModal);
+};
+function deviceModal(d){
+  const L = NET_LEVEL[d.level] || NET_LEVEL.low;
+  const name = d.hostname || (d.is_self ? "This phone" : (d.vendor || "Unknown device"));
+  const ports = d.open_ports.length
+    ? d.open_ports.map(p => `<span class="tag">${p} &middot; ${esc((d.port_labels||{})[p]||"")}</span>`).join("")
+    : '<span class="sub">none detected</span>';
+  openModal(`${esc(name)} <span class="badge ${L.cls}" style="margin-left:6px">${L.label}</span>`, `
+    <div class="kv">
+      <div>IP address</div><div class="mono">${esc(d.ip)}</div>
+      <div>MAC address</div><div class="mono">${esc(d.mac)}${d.randomized_mac?' (randomized)':''}</div>
+      <div>Vendor</div><div>${esc(d.vendor||"Unknown")}</div>
+      <div>Network name</div><div>${esc(d.hostname||"—")}</div>
+      <div>Answered ping</div><div>${d.responds_to_ping?"yes":"no"}</div>
+    </div>
+    <div><b>Open ports</b><div style="margin:8px 0">${ports}</div></div>
+    <div><b>Why this status</b><ul class="reasons">${(d.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>
+    ${(d.level==='high'||d.level==='medium') ? NEXT_STEP : ''}`);
+}
+
+/* ---------- 2. hotspots ---------- */
+const HOT_LEVEL = {
+  high:{label:"Likely camera",cls:"b-high"}, medium:{label:"Worth checking",cls:"b-medium"}, low:{label:"Ordinary",cls:"b-low"},
+};
+let NETS = [];
+$("#hotBtn").addEventListener("click", scanHotspots);
+function scanHotspots(){
+  const btn = $("#hotBtn");
+  btn.disabled = true; btn.textContent = "Scanning…";
+  $("#hotSummary").innerHTML = ""; $("#hotMeta").textContent = "";
+  $("#hotContent").innerHTML = loading("Listening for nearby Wi-Fi networks…");
+  if (!hasNative("scanHotspots")) { window.onHotspotResult({error:"Open this inside the Camera Finder app."}); return; }
+  window.Native.scanHotspots();
+}
+function bars(rssi){
+  const n = rssi >= -50 ? 4 : rssi >= -62 ? 3 : rssi >= -74 ? 2 : 1;
+  return `<span class="bars">${[6,9,12,14].map((h,i)=>`<i class="${i<n?'on':''}" style="height:${h}px"></i>`).join("")}</span>`;
+}
+window.onHotspotResult = function(data){
+  const btn = $("#hotBtn"); btn.disabled = false; btn.textContent = "Scan again";
+  if (!data || data.error){
+    $("#hotContent").innerHTML = `<div class="empty">${esc(data ? data.error : "No result")}</div>` +
+      (data && data.need_location ? '<button class="btn ghost" id="locBtn">Open Location settings</button>' : "");
+    const lb = $("#locBtn"); if (lb) lb.addEventListener("click", () => window.Native.openLocationSettings());
+    return;
+  }
+  NETS = data.networks || [];
+  $("#hotMeta").textContent = `${NETS.length} networks · ${data.scanned_at}` +
+    (data.throttled ? " · Android limited this scan, showing the latest list" : "");
+  const n = l => NETS.filter(d => d.level === l).length;
+  $("#hotSummary").innerHTML = `<span class="pill">Networks <b>${NETS.length}</b></span>`+
+    `<span class="pill" style="color:var(--high)">Likely cameras <b>${n('high')}</b></span>`+
+    `<span class="pill" style="color:var(--med)">Worth checking <b>${n('medium')}</b></span>`;
+  if (!NETS.length){ $("#hotContent").innerHTML = '<div class="empty">No networks heard. Make sure Wi-Fi and Location are on.</div>'; return; }
+  renderList("#hotContent", NETS, w => {
+    const L = HOT_LEVEL[w.level] || HOT_LEVEL.low;
+    const name = w.ssid || "(hidden network)";
+    return `<span class="badge ${L.cls}">${L.label}</span><div class="grow"><div class="name">${esc(name)}${w.connected?' <span class="sub">· connected</span>':''}</div>
+            <div class="mono">${bars(w.rssi)} ${w.rssi} dBm · ${esc(w.band)}${w.open?' · open':''}</div></div>`;
+  }, netModal);
+};
+function netModal(w){
+  const L = HOT_LEVEL[w.level] || HOT_LEVEL.low;
+  openModal(`${esc(w.ssid || "(hidden network)")} <span class="badge ${L.cls}" style="margin-left:6px">${L.label}</span>`, `
+    <div class="kv">
+      <div>Signal</div><div>${bars(w.rssi)} ${w.rssi} dBm</div>
+      <div>Distance</div><div>${esc(w.proximity)}</div>
+      <div>Hardware</div><div>${esc(w.vendor || "Unknown")}</div>
+      <div>Access point</div><div class="mono">${esc(w.bssid)}</div>
+      <div>Band</div><div>${esc(w.band)}</div>
+      <div>Security</div><div>${esc(w.security || "—")}</div>
+    </div>
+    <div><b>Why this status</b><ul class="reasons">${(w.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>
+    ${w.level!=='low' ? `<div class="note">To locate it: walk to different spots in the room and tap <b>Scan again</b>.
+       Where the signal is strongest, sweep with the Lens finder and Magnet.</div>` + NEXT_STEP : ''}`);
+}
+
+/* ---------- shared list renderer ---------- */
+function renderList(sel, items, rowHtml, onTap){
+  const list = document.createElement("div");
+  list.className = "list";
+  items.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = rowHtml(item);
+    card.addEventListener("click", () => onTap(item));
+    list.appendChild(card);
+  });
+  $(sel).innerHTML = ""; $(sel).appendChild(list);
+}
+
+/* ---------- 3. lens / IR ---------- */
+$("#lensBtn").addEventListener("click", () => hasNative("openLens") ? window.Native.openLens("lens") : alert("Open this inside the Camera Finder app."));
+$("#irBtn").addEventListener("click",   () => hasNative("openLens") ? window.Native.openLens("ir")   : alert("Open this inside the Camera Finder app."));
+
+/* ---------- 4. magnet ---------- */
+let magOn = false, magSound = true;
+$("#magBtn").addEventListener("click", () => magOn ? stopMag() : startMag());
+$("#magCal").addEventListener("click", () => { if (hasNative("calibrateMag")) window.Native.calibrateMag(); });
+$("#magSound").addEventListener("click", () => {
+  magSound = !magSound; $("#magSound").textContent = "Sound: " + (magSound ? "on" : "off");
+  if (hasNative("setMagSound")) window.Native.setMagSound(magSound);
+});
+function startMag(){
+  if (!hasNative("startMag")) { $("#magState").textContent = "Open this inside the Camera Finder app."; return; }
+  if (!window.Native.startMag()) { $("#magState").textContent = "This phone has no magnetic sensor."; return; }
+  magOn = true; $("#magBtn").textContent = "Stop sweep";
+  $("#magState").textContent = "Calibrating… hold still"; $("#magState").style.color = "var(--muted)";
+}
+function stopMag(){
+  if (hasNative("stopMag")) window.Native.stopMag();
+  window.onMagStopped();
+}
+window.onMagStopped = function(){
+  magOn = false; $("#magBtn").textContent = "Start sweep";
+  $("#magState").textContent = "Not running"; $("#magState").style.color = "var(--muted)";
+  $("#magFill").style.width = "0";
+};
+window.onMag = function(value, baseline, calibrating){
+  $("#magRaw").textContent = `Field: ${value.toFixed(1)} µT` + (calibrating ? "" : ` · normal here: ${baseline.toFixed(1)} µT`);
+  if (calibrating){ $("#magDelta").textContent = "–"; return; }
+  const d = Math.abs(value - baseline);
+  $("#magDelta").textContent = d.toFixed(1);
+  const pct = Math.min(100, d / 60 * 100);
+  let color = "var(--low)", label = "Normal";
+  if (d >= 15){ color = "var(--high)"; label = "Strong — inspect this spot"; }
+  else if (d >= 5){ color = "var(--med)"; label = "Electronics or metal nearby"; }
+  $("#magFill").style.width = pct + "%"; $("#magFill").style.background = color;
+  $("#magState").textContent = label; $("#magState").style.color = color;
+};
+
+/* ---------- 5. checklist ---------- */
+const CHECKS = [
+  ["Smoke & CO detectors", "Look for a tiny hole or glassy dot, especially one facing the bed or shower."],
+  ["Clocks, radios, speakers, TV boxes", "Any small hole on the front that isn't a speaker grille or IR window."],
+  ["USB chargers & power adapters", "Spy chargers often face the bed. Check for a pinhole in the front."],
+  ["Air purifiers, humidifiers, fans", "Look into vents and grilles with the flashlight."],
+  ["Wall & ceiling vents, AC units, light fittings", "Shine a light through the slats."],
+  ["Picture frames, wall art, mirrors' edges", "Check behind and around the frame for wires or a lens."],
+  ["Books, plants, tissue boxes, decor", "Things that face the bed, desk or bathroom."],
+  ["Bathroom: hooks, towel rails, shower area", "Small fixtures that point at the shower or toilet."],
+  ["Mirrors", "In a dark room, press a flashlight against the glass. If you can see into a space behind it, it may be two-way."],
+  ["Anything with an unexplained cable or new screw hole", "Out-of-place items are the biggest giveaway."],
+];
+const done = new Set();
+function renderChecks(){
+  $("#checklist").innerHTML = CHECKS.map(([t,s],i) =>
+    `<label class="check"><input type="checkbox" data-i="${i}" ${done.has(i)?"checked":""}><div><b>${esc(t)}</b><span>${esc(s)}</span></div></label>`).join("");
+  $("#checkCount").textContent = `(${done.size}/${CHECKS.length} done)`;
+  document.querySelectorAll("#checklist input").forEach(cb => cb.addEventListener("change", () => {
+    const i = +cb.dataset.i; cb.checked ? done.add(i) : done.delete(i);
+    $("#checkCount").textContent = `(${done.size}/${CHECKS.length} done)`;
+  }));
+}
+renderChecks();
+</script>
+</body>
+</html>

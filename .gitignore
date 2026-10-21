@@ -1,0 +1,13 @@
+# Build output (the APK is published as a GitHub Release asset instead)
+android/build/
+*.apk
+*.idsig
+
+# Signing secrets - never commit
+*.keystore
+*.jks
+keystore.pass
+
+# Python
+__pycache__/
+*.pyc
