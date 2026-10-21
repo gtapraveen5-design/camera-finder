@@ -30,11 +30,13 @@ public class MainActivity extends Activity {
     private WebView web;
     private final Handler main = new Handler(Looper.getMainLooper());
     private Magnet magnet;
+    private Locator locator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         magnet = new Magnet(this);
+        locator = new Locator(this);
 
         web = new WebView(this);
         WebSettings s = web.getSettings();
@@ -49,7 +51,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         magnet.stop();
+        locator.stop();
         js("window.onMagStopped && window.onMagStopped()");
+        js("window.onLocateStopped && window.onLocateStopped()");
         super.onPause();
     }
 
@@ -160,5 +164,28 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void setMagSound(boolean on) { magnet.setSound(on); }
+
+        @JavascriptInterface
+        public void startLocate(final String bssid) {
+            main.post(() -> {
+                if (!hasLocationPermission()) {
+                    js("window.onLocateError('Grant the Location permission on the Hotspots tab first.')");
+                    return;
+                }
+                if (!locationOn()) {
+                    js("window.onLocateError('Turn Location on so the phone can measure signal strength.')");
+                    return;
+                }
+                boolean ok = locator.start(bssid, (rssi, pct, heard, fresh) ->
+                        js(String.format(Locale.US, "window.onLocate(%d,%d,%b,%b)", rssi, pct, heard, fresh)));
+                if (!ok) js("window.onLocateError('Turn Wi-Fi on to locate a hotspot.')");
+            });
+        }
+
+        @JavascriptInterface
+        public void stopLocate() { main.post(() -> locator.stop()); }
+
+        @JavascriptInterface
+        public void setLocateSound(boolean on) { locator.setSound(on); }
     }
 }

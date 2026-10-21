@@ -15,6 +15,7 @@ Hidden cameras hide in different ways, so the app has a tool for each one:
 |---|---|---|
 | **Network** | Cameras on the room's Wi-Fi | Lists devices on the network you joined and checks camera ports (RTSP 554, ONVIF, Hikvision and Dahua services) |
 | **Hotspots** | Cameras broadcasting **their own Wi-Fi**, or hidden behind a portable **4G router** | Lists nearby Wi-Fi networks and flags camera-style names, camera/IoT-chip makers, hidden networks and very strong (in-room) signals |
+| **Locate** | **Where** a flagged hotspot is | Re-measures a chosen hotspot's signal as you walk; the phone beeps faster and a radar fills as you get closer, like a metal detector (observe-only; no connection is made) |
 | **Lens finder** | **Offline, sleeping or SD-card** cameras | Flashlight plus a red contrast filter. It circles small bright dots that stay put, because a camera lens reflects light straight back |
 | **Infrared check** | **Night-vision** cameras | Shows a camera's infrared LEDs as glowing dots in the dark |
 | **Magnet** | Powered electronics hidden inside objects, with or without a network | Uses the phone's compass sensor, which beeps faster near electronics |

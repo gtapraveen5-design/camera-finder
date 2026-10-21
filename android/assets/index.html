@@ -70,6 +70,20 @@
   .meter .state{margin-top:8px;font-weight:700}
   .track{height:14px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:14px 0 6px}
   .fill{height:100%;width:0;background:var(--low);transition:width .12s,background .2s}
+  .radar{position:relative;width:200px;height:200px;margin:8px auto 0;border-radius:50%;
+       background:radial-gradient(circle,rgba(74,158,255,.10),rgba(74,158,255,.02) 70%,transparent 72%);
+       border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+  .radar::before,.radar::after{content:"";position:absolute;border:1px solid var(--line);border-radius:50%}
+  .radar::before{width:66%;height:66%}.radar::after{width:33%;height:33%}
+  .radar .ping{position:absolute;width:40px;height:40px;border-radius:50%;background:var(--accent);opacity:0;
+       animation:ping 2.2s ease-out infinite}
+  .radar .ping.p2{animation-delay:1.1s}
+  @keyframes ping{0%{transform:scale(.3);opacity:.5}100%{transform:scale(5);opacity:0}}
+  .radar .blip{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--low);
+       box-shadow:0 0 12px var(--low);transition:transform .25s,background .25s,box-shadow .25s;transform:scale(.4)}
+  .radar-txt{position:relative;z-index:2;text-align:center;pointer-events:none}
+  .radar-txt .big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums}
+  .radar-txt .unit{font-size:15px;color:var(--muted);font-weight:600}
   .check{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
   .check:last-child{border-bottom:0}
   .check input{width:22px;height:22px;margin-top:2px;accent-color:var(--accent);flex:none}
@@ -108,9 +122,10 @@
   <nav class="tabs" id="tabs">
     <button class="tab on" data-tab="net">1 Network</button>
     <button class="tab" data-tab="hot">2 Hotspots</button>
-    <button class="tab" data-tab="lens">3 Lens / IR</button>
-    <button class="tab" data-tab="mag">4 Magnet</button>
-    <button class="tab" data-tab="check">5 Checklist</button>
+    <button class="tab" data-tab="loc">3 Locate</button>
+    <button class="tab" data-tab="lens">4 Lens / IR</button>
+    <button class="tab" data-tab="mag">5 Magnet</button>
+    <button class="tab" data-tab="check">6 Checklist</button>
   </nav>
 
   <!-- 1. NETWORK -->
@@ -134,7 +149,34 @@
       Android limits fresh scans to about 4 every 2 minutes.</div>
   </section>
 
-  <!-- 3. LENS / IR -->
+  <!-- 3. LOCATE -->
+  <section class="panel" id="p-loc">
+    <p class="lead">Walk toward a flagged hotspot and the phone <b>beeps faster</b> as you get closer, like a metal detector. Pick a target from the <b>Hotspots</b> tab first.</p>
+    <select id="locTarget" style="width:100%;padding:12px;border-radius:12px;background:var(--panel);
+            color:var(--txt);border:1px solid var(--line);font-size:15px;margin-bottom:12px"></select>
+    <div class="tool">
+      <div class="radar" id="locRadar">
+        <span class="ping"></span><span class="ping p2"></span>
+        <span class="blip" id="locBlip"></span>
+        <div class="radar-txt"><span class="big" id="locPct">&ndash;</span><span class="unit">%</span></div>
+      </div>
+      <div class="meter" style="padding:6px 0 0">
+        <div class="sub" id="locRaw">Signal: &ndash;</div>
+        <div class="state" id="locState" style="color:var(--muted)">Not running</div>
+      </div>
+      <button class="btn" id="locBtn" disabled>Pick a target above</button>
+      <div class="row"><button class="btn ghost" id="locSound">Sound: on</button></div>
+      <ol>
+        <li>On the <b>Hotspots</b> tab, scan, then open a flagged network and tap <b>Locate this</b> (or choose it above).</li>
+        <li>Walk slowly around the room. The dot grows and the beeps speed up as the signal gets stronger.</li>
+        <li>Where it peaks, the device is closest &mdash; sweep that spot with the Lens and Magnet tabs.</li>
+      </ol>
+      <div class="sub">Only works on a device broadcasting its own Wi-Fi. Updates every couple of seconds because
+        Android limits Wi-Fi scans; turning off "Wi-Fi scan throttling" in Developer options makes it faster.</div>
+    </div>
+  </section>
+
+  <!-- 4. LENS / IR -->
   <section class="panel" id="p-lens">
     <p class="lead">Finds cameras that are <b>offline, asleep or recording to an SD card</b> &mdash; they send nothing over Wi-Fi, but their lens still reflects light.</p>
     <div class="tool">
@@ -160,7 +202,7 @@
     </div>
   </section>
 
-  <!-- 4. MAGNET -->
+  <!-- 5. MAGNET -->
   <section class="panel" id="p-mag">
     <p class="lead">Finds <b>powered electronics</b> hidden inside objects, even with no network at all, using the phone's compass sensor.</p>
     <div class="tool">
@@ -184,7 +226,7 @@
     </div>
   </section>
 
-  <!-- 5. CHECKLIST -->
+  <!-- 6. CHECKLIST -->
   <section class="panel" id="p-check">
     <p class="lead">Do a quick physical sweep. Tick each item as you check it. <span id="checkCount" class="sub"></span></p>
     <div class="tool" id="checklist"></div>
@@ -228,12 +270,15 @@ const NEXT_STEP = `<div class="note warn" style="margin-top:14px"><b>Next:</b> f
   photograph it, cover it, and report it to the booking platform and the police. Don't destroy it.</div>`;
 
 /* ---------- tabs ---------- */
-document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + t.dataset.tab));
-  if (t.dataset.tab !== "mag" && magOn) stopMag();
+function showTab(name){
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + name));
+  if (name !== "mag" && magOn) stopMag();
+  if (name !== "loc" && locOn) stopLocate();
+  if (name === "loc") fillLocTargets();
   window.scrollTo(0, 0);
-}));
+}
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
 /* ---------- modal ---------- */
 $("#mClose").addEventListener("click", closeModal);
@@ -315,8 +360,8 @@ window.onHotspotResult = function(data){
   const btn = $("#hotBtn"); btn.disabled = false; btn.textContent = "Scan again";
   if (!data || data.error){
     $("#hotContent").innerHTML = `<div class="empty">${esc(data ? data.error : "No result")}</div>` +
-      (data && data.need_location ? '<button class="btn ghost" id="locBtn">Open Location settings</button>' : "");
-    const lb = $("#locBtn"); if (lb) lb.addEventListener("click", () => window.Native.openLocationSettings());
+      (data && data.need_location ? '<button class="btn ghost" id="openLocSettings">Open Location settings</button>' : "");
+    const lb = $("#openLocSettings"); if (lb) lb.addEventListener("click", () => window.Native.openLocationSettings());
     return;
   }
   NETS = data.networks || [];
@@ -346,8 +391,10 @@ function netModal(w){
       <div>Security</div><div>${esc(w.security || "—")}</div>
     </div>
     <div><b>Why this status</b><ul class="reasons">${(w.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>
-    ${w.level!=='low' ? `<div class="note">To locate it: walk to different spots in the room and tap <b>Scan again</b>.
-       Where the signal is strongest, sweep with the Lens finder and Magnet.</div>` + NEXT_STEP : ''}`);
+    ${w.level!=='low' ? `<button class="btn" id="locateThis" style="margin-top:14px">Locate this &mdash; walk &amp; follow the beeps</button>`
+       + NEXT_STEP : ''}`);
+  const lt = $("#locateThis");
+  if (lt) lt.addEventListener("click", () => { closeModal(); startLocateFor(w.bssid, w.ssid); });
 }
 
 /* ---------- shared list renderer ---------- */
@@ -404,7 +451,89 @@ window.onMag = function(value, baseline, calibrating){
   $("#magState").textContent = label; $("#magState").style.color = color;
 };
 
-/* ---------- 5. checklist ---------- */
+/* ---------- 3. locate ---------- */
+let locOn = false, locSound = true, locBssid = "", locName = "";
+$("#locTarget").addEventListener("change", () => {
+  locBssid = $("#locTarget").value;
+  const opt = $("#locTarget").selectedOptions[0];
+  locName = opt ? opt.textContent : "";
+  const btn = $("#locBtn");
+  btn.disabled = !locBssid;
+  btn.textContent = locBssid ? (locOn ? "Stop" : "Start locating") : "Pick a target above";
+});
+$("#locBtn").addEventListener("click", () => locOn ? stopLocate() : startLocate());
+$("#locSound").addEventListener("click", () => {
+  locSound = !locSound; $("#locSound").textContent = "Sound: " + (locSound ? "on" : "off");
+  if (hasNative("setLocateSound")) window.Native.setLocateSound(locSound);
+});
+function fillLocTargets(){
+  const sel = $("#locTarget");
+  const flagged = (NETS || []).filter(w => w.level !== "low");
+  if (!flagged.length){
+    sel.innerHTML = '<option value="">No flagged hotspots yet — run the Hotspots tab</option>';
+    locBssid = ""; $("#locBtn").disabled = true; $("#locBtn").textContent = "Pick a target above";
+    return;
+  }
+  const keep = locBssid;
+  sel.innerHTML = '<option value="">Choose a hotspot to locate…</option>' +
+    flagged.map(w => `<option value="${esc(w.bssid)}">${esc(w.ssid || "(hidden)")} · ${w.rssi} dBm</option>`).join("");
+  if (keep && flagged.some(w => w.bssid === keep)) sel.value = keep;
+  sel.dispatchEvent(new Event("change"));
+}
+function startLocateFor(bssid, ssid){
+  showTab("loc");
+  fillLocTargets();
+  const sel = $("#locTarget");
+  if (![...sel.options].some(o => o.value === bssid)){
+    sel.insertAdjacentHTML("beforeend", `<option value="${esc(bssid)}">${esc(ssid || "(hidden)")}</option>`);
+  }
+  sel.value = bssid; sel.dispatchEvent(new Event("change"));
+  startLocate();
+}
+function startLocate(){
+  if (!locBssid) return;
+  if (!hasNative("startLocate")) { $("#locState").textContent = "Open this inside the Camera Finder app."; return; }
+  locOn = true; $("#locBtn").textContent = "Stop";
+  $("#locState").textContent = "Listening for " + (locName || "the hotspot") + "…";
+  $("#locState").style.color = "var(--muted)";
+  window.Native.startLocate(locBssid);
+}
+function stopLocate(){
+  if (hasNative("stopLocate")) window.Native.stopLocate();
+  window.onLocateStopped();
+}
+window.onLocateStopped = function(){
+  locOn = false; $("#locBtn").textContent = locBssid ? "Start locating" : "Pick a target above";
+  $("#locState").textContent = "Not running"; $("#locState").style.color = "var(--muted)";
+  $("#locPct").textContent = "–"; $("#locRaw").textContent = "Signal: –";
+  setBlip(0, "var(--low)");
+};
+window.onLocateError = function(msg){
+  locOn = false; $("#locBtn").textContent = locBssid ? "Start locating" : "Pick a target above";
+  $("#locState").textContent = msg; $("#locState").style.color = "var(--med)";
+};
+window.onLocate = function(rssi, pct, heard, fresh){
+  if (!heard){
+    $("#locPct").textContent = "0"; $("#locRaw").textContent = "Signal lost — turn around";
+    $("#locState").textContent = "Out of range — walk back the way you came"; $("#locState").style.color = "var(--muted)";
+    setBlip(0, "var(--low)"); return;
+  }
+  $("#locPct").textContent = pct;
+  $("#locRaw").textContent = `Signal: ${rssi} dBm` + (fresh ? "" : " · (between scans)");
+  let color = "var(--low)", label = "Far — keep moving";
+  if (pct >= 80){ color = "var(--high)"; label = "Very close — within a couple of metres"; }
+  else if (pct >= 55){ color = "var(--med)"; label = "Close — you're nearly on it"; }
+  else if (pct >= 30){ color = "var(--med)"; label = "Getting warmer"; }
+  $("#locState").textContent = label; $("#locState").style.color = color;
+  setBlip(pct, color);
+};
+function setBlip(pct, color){
+  const blip = $("#locBlip");
+  blip.style.transform = `scale(${(0.4 + pct / 100 * 1.6).toFixed(2)})`;
+  blip.style.background = color; blip.style.boxShadow = `0 0 ${6 + pct / 5}px ${color}`;
+}
+
+/* ---------- 6. checklist ---------- */
 const CHECKS = [
   ["Smoke & CO detectors", "Look for a tiny hole or glassy dot, especially one facing the bed or shower."],
   ["Clocks, radios, speakers, TV boxes", "Any small hole on the front that isn't a speaker grille or IR window."],

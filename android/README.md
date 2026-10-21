@@ -7,6 +7,7 @@ cameras. It has five tools, and each one catches a different kind of camera:
 |---|---|---|
 | **1 Network** | Cameras on the room's Wi-Fi | Lists devices on the network you joined; checks camera ports (RTSP 554 etc.) |
 | **2 Hotspots** | Cameras on **their own Wi-Fi hotspot**, or behind a portable **4G router** | Lists nearby Wi-Fi networks; flags camera-style names (HDWiFiCam, V380 "MV…", Yoosee "GW_AP…", IPCAM…), camera/IoT-chip makers, hidden networks and very strong (in-room) signals |
+| **3 Locate** | **Where** a flagged hotspot is | Pick a hotspot (from the Hotspots tab) and walk; the phone re-measures its signal, beeping faster and filling a radar as you close in. Works only on a device broadcasting its own Wi-Fi; it never connects to it |
 | **3 Lens finder** | **Offline / asleep / SD-card** cameras | Flashlight + red contrast filter; circles small bright dots that stay put (a lens reflects light straight back) |
 | **3 Infrared check** | **Night-vision** cameras | Camera view in the dark shows IR LEDs as purple/white dots (with a TV-remote test) |
 | **4 Magnet** | **Any powered electronics** hidden in objects, even with no network | Phone's compass sensor; beeps faster near electronics |
@@ -30,13 +31,13 @@ Permissions it asks for, and why:
 ## Sweeping a room (about 10 minutes)
 
 1. **Network**: join the room's Wi-Fi, tap Scan.
-2. **Hotspots**: tap Scan. If anything is flagged, walk around and scan again;
-   where the signal is strongest (closer to 0 dBm) is where it is.
-3. **Lens finder**: lights off, sweep each wall slowly. Inspect every red circle.
-4. **Infrared**: still in the dark. Do the TV-remote test first.
-5. **Magnet**: pass the top of the phone over smoke detectors, clocks, chargers,
+2. **Hotspots**: tap Scan. If anything is flagged, open it and tap **Locate this**.
+3. **Locate**: walk slowly; follow the beeps and the radar to where the signal peaks.
+4. **Lens finder**: lights off, sweep each wall slowly. Inspect every red circle.
+5. **Infrared**: still in the dark. Do the TV-remote test first.
+6. **Magnet**: pass the top of the phone over smoke detectors, clocks, chargers,
    frames, plants, tissue boxes and hooks.
-6. **Checklist**: tick off the physical checks.
+7. **Checklist**: tick off the physical checks.
 
 **If you find a camera:** don't damage it, because it's evidence. Photograph it
 where it is, cover it, leave if you feel unsafe, and report it to the booking

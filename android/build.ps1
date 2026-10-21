@@ -99,7 +99,7 @@ Say "[2/6] aapt2 link"
     --manifest (Join-Path $App 'AndroidManifest.xml') `
     (Join-Path $Work 'res.zip') `
     --min-sdk-version 28 --target-sdk-version 34 `
-    --version-code 2 --version-name 1.1 `
+    --version-code 3 --version-name 1.2 `
     --java (Join-Path $Work 'gen') `
     -o (Join-Path $Work 'app.apk')
 if ($LASTEXITCODE -ne 0) { Die "aapt2 link failed" }
